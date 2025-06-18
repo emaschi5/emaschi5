@@ -46,7 +46,7 @@ jobs:
             filename=$(_jq '.filename')
             download_url=$(_jq '.url') # Usa l'URL fornito dal server Flask
             
-            echo "Tentativo di download del file '$filename' da '$download_url'..."
+            echo "Tentativo di download del file '$filename'..." # Modificato per non stampare l'URL completo
             curl -LfsS -H "X-Auth-Token: $PI_TOKEN" -o "download/$filename" "$download_url"
             
             if [ $? -eq 0 ]; then
