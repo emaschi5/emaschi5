@@ -1,7 +1,7 @@
 name: Download All Files from Raspberry Pi Directory
 
 on: [push] # O qualsiasi altro trigger tu voglia
-
+  workflow_dispatch:
 jobs:
   download_all_from_pi:
     runs-on: ubuntu-latest
