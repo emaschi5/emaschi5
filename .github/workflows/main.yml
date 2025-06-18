@@ -1,0 +1,60 @@
+name: Download All Files from Raspberry Pi Directory
+
+on: [push] # O qualsiasi altro trigger tu voglia
+
+jobs:
+  download_all_from_pi:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install jq (for parsing JSON)
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Download file list and then files from Raspberry Pi
+        env:
+          PI_LIST_URL: ${{ secrets.RASPBERRY_PI_BASE_URL }}/list-files 
+          PI_TOKEN: ${{ secrets.RASPBERRY_PI_AUTH_TOKEN }}
+        run: |
+          echo "Tentativo di ottenere l'elenco dei file da: $PI_LIST_URL"
+          
+          # Scarica l'elenco dei file (JSON)
+          # Assicurati che anche /list-files richieda il token se necessario
+          file_list_json=$(curl -LfsS -H "X-Auth-Token: $PI_TOKEN" "$PI_LIST_URL")
+          
+          if [ -z "$file_list_json" ]; then
+            echo "Errore: l'elenco dei file è vuoto o non è stato possibile recuperarlo."
+            exit 1
+          fi
+          
+          echo "Elenco file JSON ricevuto:"
+          echo "$file_list_json"
+          
+          # Crea una directory per i file scaricati
+          mkdir -p download
+          
+          # Itera sull'elenco dei file e scarica ciascuno
+          # jq -r '.[] | .filename' estrae i nomi dei file
+          # jq -r '.[] | .url' estrae gli URL di download
+          echo "$file_list_json" | jq -r '.[] | @base64' | while read -r i; do
+            _jq() {
+              echo "${i}" | base64 --decode | jq -r "${1}"
+            }
+            
+            filename=$(_jq '.filename')
+            download_url=$(_jq '.url') # Usa l'URL fornito dal server Flask
+            
+            echo "Tentativo di download del file '$filename' da '$download_url'..."
+            curl -LfsS -H "X-Auth-Token: $PI_TOKEN" -o "download/$filename" "$download_url"
+            
+            if [ $? -eq 0 ]; then
+              echo "File '$filename' scaricato con successo."
+            else
+              echo "Errore durante il download del file '$filename'. Codice di uscita: $?"
+              # Potresti decidere se uscire con errore o continuare con gli altri file
+            fi
+          done
+          
+          echo "Processo di download completato. Contenuto della cartella:"
+          ls -l download
