@@ -1,4 +1,4 @@
-name: Download All Files from Raspberry Pi Directory
+name: download
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ jobs:
       - name: Install jq (for parsing JSON)
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Download file list and then files from Raspberry Pi
+      - name: Download files
         env:
           PI_LIST_URL: ${{ secrets.RASPBERRY_PI_BASE_URL }}/list-files 
           PI_TOKEN: ${{ secrets.RASPBERRY_PI_AUTH_TOKEN }}
@@ -30,7 +30,9 @@ jobs:
           fi
           
           echo "Elenco file JSON ricevuto:"
-          echo "$file_list_json"
+          #echo "$file_list_json"
+          echo "File da scaricare (dall'elenco JSON):"
+          echo "$file_list_json" | jq -r '.[] | .filename'
           
           # Crea una directory per i file scaricati
           mkdir -p download
@@ -59,3 +61,21 @@ jobs:
           
           echo "Processo di download completato. Contenuto della cartella:"
           ls -l download
+
+      - name: Commit and push files
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          # Controlla se ci sono file nella cartella download prima di procedere
+          if [ -n "$(ls -A download)" ]; then
+            git add download/*
+            # Controlla se ci sono modifiche da committare
+            if ! git diff --staged --quiet; then
+              git commit -m "Add/Update downloaded RBTv77 pages"
+              git push
+            else
+              echo "Nessuna modifica ai file scaricati da committare."
+            fi
+          else
+            echo "La cartella 'download' è vuota. Nessun file da committare."
+          fi
